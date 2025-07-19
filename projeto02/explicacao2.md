@@ -14,3 +14,4 @@ A imagem original utilizada foi a famosa **Lena**:
 | Original | Escala de Cinza | Binarizada |
 |----------|------------------|-------------|
 | ![Lena colorida](img.png) | ![Cinza](img_cinza.png) | ![Binarizada](img_bin.png) |
+---
