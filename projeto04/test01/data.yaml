@@ -1,0 +1,5 @@
+train: /content/drive/MyDrive/dio/projeto04/test01/images/train
+val: /content/drive/MyDrive/dio/projeto04/test01/images/val
+
+nc: 2
+names: ['mask', 'helmet']
