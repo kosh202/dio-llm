@@ -5,22 +5,13 @@ import pywhatkit
 import datetime
 import sys
 
-# Inicializa o motor de fala
-engine = pyttsx3.init()
-
-# Configura voz (0 = masculina, 1 = feminina, depende do Windows)
-voices = engine.getProperty('voices')
-engine.setProperty('voice', voices[0].id)  # Troque para voices[1] se quiser
-engine.setProperty('volume', 1.0)  # 1.0 = máximo
-
-
 # Função para falar
 def falar(texto):
     engine = pyttsx3.init()
     engine.setProperty('rate', 170)
     engine.setProperty('volume', 1.0)
     voices = engine.getProperty('voices')
-    engine.setProperty('voice', voices[0].id)  # Troque se quiser outra voz
+    engine.setProperty('voice', voices[0].id)  # Troque para voices[1] se quiser outra voz
     engine.say(texto)
     engine.runAndWait()
     engine.stop()
@@ -63,7 +54,7 @@ def executar_comando(comando):
                 resumo = wikipedia.summary(termo, sentences=2)
                 falar(resumo)
                 print(resumo)
-            except wikipedia.exceptions.DisambiguationError as e:
+            except wikipedia.exceptions.DisambiguationError:
                 falar("Termo ambíguo, seja mais específico.")
                 print("Termo ambíguo, seja mais específico.")
             except wikipedia.exceptions.PageError:
@@ -86,7 +77,6 @@ def executar_comando(comando):
     elif "sair" in comando:
         falar("Até logo!")
         print("Até logo!")
-        engine.stop()
         sys.exit()
 
     else:
@@ -101,5 +91,4 @@ try:
             executar_comando(comando)
 except KeyboardInterrupt:
     falar("Encerrando assistente...")
-    engine.stop()
     sys.exit()
