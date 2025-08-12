@@ -4,3 +4,4 @@ export_yolo/
 datasets/
 dataset/
 
+.env
