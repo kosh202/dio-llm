@@ -7,34 +7,29 @@ from fastapi import FastAPI, UploadFile, Form, File
 from fastapi.responses import JSONResponse
 from pathlib import Path
 from fastapi.middleware.cors import CORSMiddleware
-# from fastapi.staticfiles import StaticFiles
 
 env_path = Path(__file__).resolve(strict=True).parent / ".env"
-load_dotenv(dotenv_path = env_path)
+load_dotenv(dotenv_path=env_path)
 
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
-AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION ")
+AZURE_OPENAI_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION")  # Corrigido espaço extra
 AZURE_OPENAI_DEPLOYMENT_NAME = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME")
-
-
-#Configuracao do fastapi
 
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], #permitir todas as origens
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"], #permitir todos os metodos
-    allow_headears=["*"] #permitir todos os cabecalhos
+    allow_methods=["*"],
+    allow_headers=["*"]  # Corrigido nome do parâmetro
 )
 
-#configuracao do cliente openai
 client = AzureOpenAI(
-    api_key = AZURE_OPENAI_API_KEY,
-    azure_endpoint= AZURE_OPENAI_ENDPOINT,
-    api_version = AZURE_OPENAI_API_VERSION,
-    azure_deployment= AZURE_OPENAI_DEPLOYMENT_NAME
+    api_key=AZURE_OPENAI_API_KEY,
+    azure_endpoint=AZURE_OPENAI_ENDPOINT,
+    api_version=AZURE_OPENAI_API_VERSION,
+    azure_deployment=AZURE_OPENAI_DEPLOYMENT_NAME
 )
 
 def criar_prompt_modelo_ameacas(tipo_aplicacao, autenticacao, acesso_internet, dados_sensiveis, descricao_aplicacao):
@@ -104,52 +99,55 @@ Nas sugestões, foque em identificar lacunas na descrição da aplicação que, 
 """
     return prompt
 
-
 @app.post("/analisar_ameacas")
 async def analisar_ameacas(
     imagem: UploadFile = File(...),
-    tipo_aplicacao: str =Form(...),
+    tipo_aplicacao: str = Form(...),
     autenticacao: str = Form(...),
     acesso_internet: str = Form(...),
     dados_sensiveis: str = Form(...),
     descricao_aplicacao: str = Form(...)
 ):
     try:
-        #criar o prompt para o modelo de ameacas
-        prompt = criar_prompt_modelo_ameacas(tipo_aplicacao,
-                                                autenticacao,
-                                                acesso_internet,
-                                                dados_sensiveis,
-                                                descricao_aplicacao)
-        # salvar a imagem temporariamente
-        with tempfile.NamedTemporaryFile(delete=False, suffix = Path(imagem.filename).suffix) as temp_file:
-            content= await imagem.read()
-            temp_file.write(await imagem.read())
+        print(imagem)  # Adicionado para depuração
+        content = await imagem.read()
+        prompt = criar_prompt_modelo_ameacas(tipo_aplicacao, autenticacao, acesso_internet, dados_sensiveis, descricao_aplicacao)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=Path(imagem.filename).suffix) as temp_file:
+            temp_file.write(content)  # Corrigido para usar o conteúdo lido
             temp_file_path = temp_file.name
 
-        #convert imagem para base 64
         with open(temp_file_path, "rb") as image_file:
             encoded_string = base64.b64encode(image_file.read()).decode('ascii')
 
-        #adicionar a aimagem codificada ao prompt
         chat_prompt = [
-            {"role": "system", "content":"voce é uma ua especialistaa em cibersegurnaca"},
-            {"role": "user", "content":{"type":"text", "text":prompt}},
-            {"role": "user", "content":{"type":"image_url", "image_url":f"data:image/png;base64,{encoded_string}"}},
-            {"role": "user", "content":{"type":"text", "text":"Por favor, analise a imagem e o texto acima e forneca um modelo de ameacas detalhado"}},
-        ]
-        
-        #chamar o modelo openai
-        response = client.chat(
-            messages = chat_prompt,
-            temperature= 0.7,
-            max_tokens = 1500,
-            top_p = 0.95
-        )
-        os.remove(temp_file_path) #remover o arquivo temporrario apos o uso
+            {"role": "system", "content": "Você é uma especialista IA especialista em cibersegurança, que analisa desenhos de arquitetura."},
+            {"role": "user"
+             , "content": [
+                {"type": "text"
+                 , "text": prompt
+                  },
+                {"type": "image_url",
+                 "image_url": {"url": f"data:image/png;base64,{encoded_string}"}
+                 },
+            {"type": "text",
+              "text": "Por favor, analise a imagem e o texto acima e forneça um modelo de ameaças detalhado"
+              }]
+        }]
 
-        #retornar a resposta do modelo
-        return JSONResponse(conten=response.to_dict(), status_code = 200)
-    
+        response = client.chat.completions.create(
+            messages=chat_prompt,
+            temperature=0.7,
+            max_tokens=1500,
+            top_p=0.95,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            stop=None,
+            Stream=False,
+            model=AZURE_OPENAI_DEPLOYMENT_NAME
+        )
+        os.remove(temp_file_path)
+
+        return JSONResponse(content=response.to_dict(), status_code=200)  # Corrigido nome do parâmetro
+
     except Exception as e:
-        return JSONResponse(content={"error":str(e)}, status_code=500)
+        return JSONResponse(content={"error": str(e)}, status_code=500)
